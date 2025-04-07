@@ -153,5 +153,35 @@ namespace GuiasBackend.Services
             }
             return await _context.VistaEmpleados.AnyAsync(e => e.Codigo == codigoInt);
         }
+
+        public async Task<VistaEmpleado?> GetEmpleadoPorCodigoAsync(string codigo)
+        {
+            if (!int.TryParse(codigo, out var codigoInt))
+            {
+                throw new ArgumentException("El código debe ser un número válido", nameof(codigo));
+            }
+
+            try
+            {
+                var codigoParam = new OracleParameter("codigo_param", codigoInt);
+                
+                var query = @"
+                    SELECT CODIGO, EMPLEADO, DNI, CD_TRANSP
+                    FROM PIMS_GRE.VISTA_EMPLEADO
+                    WHERE CODIGO = :codigo_param";
+                
+                var empleados = await _context.VistaEmpleados
+                    .FromSqlRaw(query, codigoParam)
+                    .AsNoTracking()
+                    .ToListAsync();
+                
+                return empleados.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener el empleado con código {Codigo}", codigo);
+                throw new InvalidOperationException($"Error al obtener el empleado con código {codigo}", ex);
+            }
+        }
     }
 }

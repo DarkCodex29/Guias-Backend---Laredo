@@ -9,5 +9,6 @@ namespace GuiasBackend.Services.Interfaces
         Task<VistaEmpleado?> GetEmpleadoByDniAsync(string dni);
         Task<VistaEmpleado?> GetEmpleadoByEmpleadoAsync(string empleado);
         Task<bool> ExisteEmpleadoPorCodigoAsync(string codigo);
+        Task<VistaEmpleado?> GetEmpleadoPorCodigoAsync(string codigo);
     }
 }

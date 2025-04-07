@@ -118,13 +118,14 @@ namespace GuiasBackend.Controllers
         }
 
         /// <summary>
-        /// Valida si existe un empleado por su código.
+        /// Obtiene un empleado por su código si existe.
         /// </summary>
         /// <param name="codigo">Código del empleado</param>
-        /// <returns>True si existe, False en caso contrario</returns>
+        /// <returns>Información del empleado si existe, NotFound en caso contrario</returns>
         [HttpGet("existe/{codigo}")]
-        [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(VistaEmpleado), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> ExisteEmpleadoPorCodigo(string codigo)
         {
@@ -135,12 +136,21 @@ namespace GuiasBackend.Controllers
 
             try
             {
-                var existe = await _empleadoService.ExisteEmpleadoPorCodigoAsync(codigo);
-                return Ok(existe);
+                var empleado = await _empleadoService.GetEmpleadoPorCodigoAsync(codigo);
+                if (empleado == null)
+                {
+                    return NotFound(new { message = $"No se encontró el empleado con código {codigo}" });
+                }
+                return Ok(empleado);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Error interno: {ex.Message}");
+                _logger.LogError(ex, "Error al obtener el empleado con código {Codigo}", codigo);
+                return StatusCode(500, ErrorMessages.InternalServerError);
             }
         }
     }
