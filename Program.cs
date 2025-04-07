@@ -309,20 +309,20 @@ static void ProcessEmailConfiguration(IConfiguration configuration)
     if (emailUsername?.Contains("#{EMAIL_USERNAME}#") == true)
     {
         configuration["Email:Username"] = emailUsername.Replace("#{EMAIL_USERNAME}#", 
-            configuration["EMAIL_USERNAME"] ?? throw new InvalidOperationException("EMAIL_USERNAME no configurada"));
+            configuration["EMAIL_USERNAME"] ?? "correo@ejemplo.com");
     }
     
     var emailPassword = configuration["Email:Password"];
     if (emailPassword?.Contains("#{EMAIL_PASSWORD}#") == true)
     {
         configuration["Email:Password"] = emailPassword.Replace("#{EMAIL_PASSWORD}#", 
-            configuration["EMAIL_PASSWORD"] ?? throw new InvalidOperationException("EMAIL_PASSWORD no configurada"));
+            configuration["EMAIL_PASSWORD"] ?? "password");
     }
     
     var emailSender = configuration["Email:SenderEmail"];
     if (emailSender?.Contains("#{EMAIL_SENDER}#") == true)
     {
         configuration["Email:SenderEmail"] = emailSender.Replace("#{EMAIL_SENDER}#", 
-            configuration["EMAIL_SENDER"] ?? configuration["EMAIL_USERNAME"] ?? throw new InvalidOperationException("EMAIL_SENDER no configurada"));
+            configuration["EMAIL_SENDER"] ?? configuration["EMAIL_USERNAME"] ?? "correo@ejemplo.com");
     }
 }
