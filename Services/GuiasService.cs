@@ -27,19 +27,13 @@ namespace GuiasBackend.Services
             {
                 // Obtener el total de registros usando SQL nativo
                 int totalRecords = 0;
-                var countQuery = "SELECT COUNT(*) FROM PIMS_GRE.GUIAS";
-                
-                using (var command = _context.Database.GetDbConnection().CreateCommand())
+                var countSql = "SELECT COUNT(*) AS TOTAL FROM PIMS_GRE.GUIAS";
+                var countResult = await _context.Database
+                    .SqlQueryRaw<CountResult>(countSql)
+                    .ToListAsync(cancellationToken);
+                if (countResult.Count > 0)
                 {
-                    command.CommandText = countQuery;
-                    
-                    if (command.Connection.State != System.Data.ConnectionState.Open)
-                    {
-                        await command.Connection.OpenAsync(cancellationToken);
-                    }
-                    
-                    var result = await command.ExecuteScalarAsync(cancellationToken);
-                    totalRecords = Convert.ToInt32(result);
+                    totalRecords = countResult[0].TOTAL;
                 }
                 
                 List<Guia> guias;
@@ -85,48 +79,52 @@ namespace GuiasBackend.Services
                         .ToListAsync(cancellationToken);
                 }
                 
-                // Cargar usuarios utilizando SQL nativo
-                if (guias.Any())
+                // Cargar usuarios utilizando SQL nativo si hay guías
+                if (guias.Count > 0)
                 {
-                    // Obtener todos los IDs de usuario únicos
-                    var userIds = guias.Select(g => g.ID_USUARIO).Distinct().ToList();
-                    
-                    // Consulta para obtener usuarios por IDs
-                    var usuariosQuery = @"
-                        SELECT ID, USERNAME, NOMBRES, APELLIDOS, ROL, EMAIL, ESTADO
-                        FROM PIMS_GRE.USUARIO
-                        WHERE ID IN ({0})";
-                    
-                    // Crear parámetros dinámicamente
-                    var parameters = new List<OracleParameter>();
-                    var parameterNames = new List<string>();
-                    
-                    for (int i = 0; i < userIds.Count; i++)
+                    // Extraer los IDs de usuarios únicos
+                    var userIds = new HashSet<int>();
+                    foreach (var guia in guias)
                     {
-                        var paramName = $":p{i}";
-                        parameterNames.Add(paramName);
-                        parameters.Add(new OracleParameter 
-                        { 
-                            ParameterName = paramName,
-                            OracleDbType = OracleDbType.Int32,
-                            Value = userIds[i]
-                        });
+                        userIds.Add(guia.ID_USUARIO);
                     }
                     
-                    // Construir consulta final con parámetros
-                    var formattedQuery = string.Format(usuariosQuery, string.Join(",", parameterNames));
+                    // Preparar el parámetro IN para la consulta SQL
+                    var idsList = string.Join(",", userIds);
                     
-                    // Ejecutar consulta para obtener usuarios
+                    // Ejecutar la consulta SQL nativa para obtener los usuarios
+                    var usuariosSql = $@"
+                        SELECT 
+                            ID, 
+                            USERNAME, 
+                            NOMBRES, 
+                            APELLIDOS, 
+                            CONTRASEÑA, 
+                            ROL, 
+                            EMAIL, 
+                            ESTADO, 
+                            FECHA_CREACION, 
+                            FECHA_ACTUALIZACION 
+                        FROM PIMS_GRE.USUARIO 
+                        WHERE ID IN ({idsList}) 
+                        AND ESTADO = '1'";
+                    
                     var usuarios = await _context.Usuarios
-                        .FromSqlRaw(formattedQuery, parameters.ToArray())
+                        .FromSqlRaw(usuariosSql)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
                     
-                    // Asignar usuarios a guías
-                    foreach (var guia in guias)
+                    // Crear un mapa de usuarios por ID para asignación eficiente
+                    var usuariosMap = new Dictionary<int, Usuario>();
+                    foreach (var usuario in usuarios)
                     {
-                        guia.Usuario = usuarios.FirstOrDefault(u => u.ID == guia.ID_USUARIO);
+                        usuariosMap[usuario.ID] = usuario;
                     }
+                    
+                    // Asignar usuarios a guías
+                    guias.Where(g => usuariosMap.ContainsKey(g.ID_USUARIO))
+                         .ToList()
+                         .ForEach(g => g.Usuario = usuariosMap[g.ID_USUARIO]);
                 }
                 
                 return new PagedResponse<Guia>(
@@ -462,6 +460,11 @@ namespace GuiasBackend.Services
                 _logger.LogError(ex, "Error al eliminar la guía con ID {Id}", id);
                 throw new InvalidOperationException($"Error al eliminar la guía con ID {id}", ex);
             }
+        }
+
+        private sealed class CountResult
+        {
+            public int TOTAL { get; set; } = 0;
         }
     }
 }
