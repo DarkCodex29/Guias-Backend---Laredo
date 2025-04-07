@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace GuiasBackend.Models
 {
@@ -26,7 +27,15 @@ namespace GuiasBackend.Models
         [Column("ID_USUARIO")]
         public int ID_USUARIO { get; set; }
 
+        [JsonIgnore]
         [ForeignKey("ID_USUARIO")]
         public virtual Usuario? Usuario { get; set; }
+        
+        [NotMapped]
+        public string UsernameUsuario 
+        { 
+            get => Usuario?.USERNAME ?? string.Empty;
+            set => _ = value; // Solo para serialización
+        }
     }
 }

@@ -122,6 +122,7 @@ namespace GuiasBackend.Services
                                  ID = usuarioSimple.ID,
                                  USERNAME = usuarioSimple.USERNAME
                              };
+                             g.UsernameUsuario = usuarioSimple.USERNAME;
                          });
                 }
                 
