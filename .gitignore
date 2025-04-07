@@ -1,0 +1,72 @@
+# Archivos de configuración sensibles
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+*.Development.json
+*.Production.json
+*.Staging.json
+
+# Directorios y archivos de .NET
+bin/
+obj/
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.dbmdl
+*.jfm
+
+# Archivos temporales
+*.log
+*.tmp
+*.temp
+*.swp
+*~
+
+# Directorios de dependencias
+node_modules/
+packages/
+wwwroot/lib/
+
+# Archivos de secretos
+*.pfx
+*.key
+*.pem
+*.cert
+secrets.json
+*.secret
+
+# Archivos de base de datos local
+*.mdf
+*.ldf
+*.db
+*.sqlite
+
+# Archivos de IDE
+.idea/
+.vscode/
+*.sln.iml
+
+# Archivos de compilación
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Archivos de caché
+.sass-cache/
+*.css.map
+*.js.map
+
+# Excluir archivos de configuración sensibles del repositorio
+appsettings.Development.json
+appsettings.Production.json
+bin/Debug/net8.0/appsettings.json 
