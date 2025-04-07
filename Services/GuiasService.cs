@@ -58,7 +58,6 @@ namespace GuiasBackend.Services
                     endRowParam.ParameterName = "endRow";
                     endRowParam.OracleDbType = OracleDbType.Int32;
                     endRowParam.Value = pageSize * page;
-                    
                     var startRowParam = new OracleParameter();
                     startRowParam.ParameterName = "startRow";
                     startRowParam.OracleDbType = OracleDbType.Int32;
