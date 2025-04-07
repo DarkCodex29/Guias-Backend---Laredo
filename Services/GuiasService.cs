@@ -96,35 +96,33 @@ namespace GuiasBackend.Services
                     var usuariosSql = $@"
                         SELECT 
                             ID, 
-                            USERNAME, 
-                            NOMBRES, 
-                            APELLIDOS, 
-                            CONTRASEÑA, 
-                            ROL, 
-                            EMAIL, 
-                            ESTADO, 
-                            FECHA_CREACION, 
-                            FECHA_ACTUALIZACION 
+                            USERNAME
                         FROM PIMS_GRE.USUARIO 
                         WHERE ID IN ({idsList}) 
                         AND ESTADO = '1'";
                     
-                    var usuarios = await _context.Usuarios
-                        .FromSqlRaw(usuariosSql)
-                        .AsNoTracking()
+                    var usuariosSimples = await _context.Database
+                        .SqlQueryRaw<UsuarioSimple>(usuariosSql)
                         .ToListAsync(cancellationToken);
                     
-                    // Crear un mapa de usuarios por ID para asignación eficiente
-                    var usuariosMap = new Dictionary<int, Usuario>();
-                    foreach (var usuario in usuarios)
+                    // Crear un mapa de usuarios simplificados por ID para asignación eficiente
+                    var usuariosMap = new Dictionary<int, UsuarioSimple>();
+                    foreach (var usuario in usuariosSimples)
                     {
                         usuariosMap[usuario.ID] = usuario;
                     }
                     
-                    // Asignar usuarios a guías
+                    // Asignar usuarios simplificados a guías
                     guias.Where(g => usuariosMap.ContainsKey(g.ID_USUARIO))
                          .ToList()
-                         .ForEach(g => g.Usuario = usuariosMap[g.ID_USUARIO]);
+                         .ForEach(g => {
+                             var usuarioSimple = usuariosMap[g.ID_USUARIO];
+                             g.Usuario = new Usuario 
+                             { 
+                                 ID = usuarioSimple.ID,
+                                 USERNAME = usuarioSimple.USERNAME
+                             };
+                         });
                 }
                 
                 return new PagedResponse<Guia>(
@@ -465,6 +463,12 @@ namespace GuiasBackend.Services
         private sealed class CountResult
         {
             public int TOTAL { get; set; } = 0;
+        }
+
+        private sealed class UsuarioSimple
+        {
+            public int ID { get; set; } = 0;
+            public string USERNAME { get; set; } = string.Empty;
         }
     }
 }
