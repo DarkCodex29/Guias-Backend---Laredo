@@ -70,6 +70,14 @@ namespace GuiasBackend.Services
                         .ToListAsync(cancellationToken);
                 }
                 
+                // Cargar los usuarios para cada guía
+                foreach (var guia in guias)
+                {
+                    guia.Usuario = await _context.Usuarios
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.ID == guia.ID_USUARIO, cancellationToken);
+                }
+                
                 return new PagedResponse<Guia>(
                     data: guias,
                     page: page,
@@ -101,7 +109,16 @@ namespace GuiasBackend.Services
                     .AsNoTracking()
                     .ToListAsync(cancellationToken);
                 
-                return guias.FirstOrDefault();
+                var guia = guias.FirstOrDefault();
+                if (guia != null)
+                {
+                    // Cargar el usuario de la guía
+                    guia.Usuario = await _context.Usuarios
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.ID == guia.ID_USUARIO, cancellationToken);
+                }
+                
+                return guia;
             }
             catch (Exception ex)
             {
@@ -183,6 +200,16 @@ namespace GuiasBackend.Services
                     {
                         _logger.LogInformation("El usuario con ID {IdUsuario} no tiene guías asignadas", idUsuario);
                     }
+                    
+                    // Cargar el usuario para cada guía
+                    var usuario = await _context.Usuarios
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.ID == idUsuario, cancellationToken);
+                        
+                    foreach (var guia in guias)
+                    {
+                        guia.Usuario = usuario;
+                    }
                         
                     return guias;
                 }
@@ -233,6 +260,16 @@ namespace GuiasBackend.Services
                         _logger.LogInformation("El usuario con ID {IdUsuario} no tiene guías asignadas en la página {Page}", idUsuario, page);
                     }
                         
+                    // Cargar el usuario para cada guía
+                    var usuario = await _context.Usuarios
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.ID == idUsuario, cancellationToken);
+                        
+                    foreach (var guia in guias)
+                    {
+                        guia.Usuario = usuario;
+                    }
+                        
                     return guias;
                 }
             }
@@ -265,46 +302,9 @@ namespace GuiasBackend.Services
         {
             try
             {
-                // Consulta directa con ExecuteSqlInterpolatedAsync para obtener solo los datos que necesitamos
-                var sql = @"
-                    SELECT NOMBRE 
-                    FROM (
-                        SELECT NOMBRE 
-                        FROM PIMS_GRE.GUIAS 
-                        ORDER BY ID DESC
-                    ) 
-                    WHERE ROWNUM = 1";
-
-                // Ejecutar directamente con ADO.NET sin mapear a entidad
-                string? ultimoNombre = null;
-                using (var command = _context.Database.GetDbConnection().CreateCommand())
-                {
-                    command.CommandText = sql;
-                    
-                    if (command.Connection != null && command.Connection.State != System.Data.ConnectionState.Open)
-                    {
-                        await command.Connection.OpenAsync(cancellationToken);
-                    }
-                    
-                    using var reader = await command.ExecuteReaderAsync(cancellationToken);
-                    if (await reader.ReadAsync(cancellationToken))
-                    {
-                        ultimoNombre = !(await reader.IsDBNullAsync(0, cancellationToken)) ? reader.GetString(0) : null;
-                    }
-                }
-
-                int siguienteNumero = 100; // Comenzamos desde 100
-
-                if (!string.IsNullOrEmpty(ultimoNombre))
-                {
-                    // Extraer el número del último correlativo
-                    var partes = ultimoNombre.Split('-');
-                    if (partes.Length == 2 && int.TryParse(partes[1], out int ultimoNumero))
-                    {
-                        siguienteNumero = ultimoNumero + 1;
-                    }
-                }
-
+                string? ultimoNombre = await ObtenerUltimoNombreAsync(cancellationToken);
+                int siguienteNumero = ObtenerSiguienteNumero(ultimoNombre);
+                
                 // Formatear el nuevo correlativo
                 return $"T002-{siguienteNumero:D8}";
             }
@@ -313,6 +313,83 @@ namespace GuiasBackend.Services
                 _logger.LogError(ex, "Error al generar el correlativo de guía");
                 throw new InvalidOperationException("Error al generar el correlativo de guía", ex);
             }
+        }
+        
+        private async Task<string?> ObtenerUltimoNombreAsync(CancellationToken cancellationToken)
+        {
+            // Consulta directa con ExecuteSqlInterpolatedAsync para obtener solo los datos que necesitamos
+            var sql = @"
+                SELECT NOMBRE 
+                FROM (
+                    SELECT NOMBRE 
+                    FROM PIMS_GRE.GUIAS 
+                    ORDER BY ID DESC
+                ) 
+                WHERE ROWNUM = 1";
+
+            // Ejecutar directamente con ADO.NET sin mapear a entidad
+            string? ultimoNombre = null;
+            using (var command = _context.Database.GetDbConnection().CreateCommand())
+            {
+                command.CommandText = sql;
+                
+                if (command.Connection != null && command.Connection.State != System.Data.ConnectionState.Open)
+                {
+                    await command.Connection.OpenAsync(cancellationToken);
+                }
+                
+                using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                if (await reader.ReadAsync(cancellationToken))
+                {
+                    ultimoNombre = !(await reader.IsDBNullAsync(0, cancellationToken)) ? reader.GetString(0) : null;
+                }
+            }
+            
+            return ultimoNombre;
+        }
+        
+        private int ObtenerSiguienteNumero(string? ultimoNombre)
+        {
+            int siguienteNumero = 100; // Comenzamos desde 100 si no hay guías
+
+            if (string.IsNullOrEmpty(ultimoNombre))
+            {
+                _logger.LogInformation("No se encontraron guías previas, se comenzará con el número {SiguienteNumero}", siguienteNumero);
+                return siguienteNumero;
+            }
+            
+            _logger.LogInformation("Último nombre de guía encontrado: {UltimoNombre}", ultimoNombre);
+            
+            // Buscar el patrón T002-XXXXXXXX en el nombre
+            int indexT002 = ultimoNombre.IndexOf("T002-");
+            if (indexT002 < 0)
+            {
+                _logger.LogWarning("No se encontró el patrón T002- en el nombre: {UltimoNombre}", ultimoNombre);
+                return siguienteNumero;
+            }
+            
+            // Extraer la parte después de "T002-"
+            string numeroStr = ultimoNombre.Substring(indexT002 + 5);
+            
+            // Si hay una extensión, quitarla
+            int indexPunto = numeroStr.IndexOf('.');
+            if (indexPunto >= 0)
+            {
+                numeroStr = numeroStr.Substring(0, indexPunto);
+            }
+            
+            // Intentar convertir a número
+            if (int.TryParse(numeroStr, out int ultimoNumero))
+            {
+                siguienteNumero = ultimoNumero + 1;
+                _logger.LogInformation("Número extraído: {UltimoNumero}, Siguiente: {SiguienteNumero}", ultimoNumero, siguienteNumero);
+            }
+            else
+            {
+                _logger.LogWarning("No se pudo convertir a número: {NumeroStr}", numeroStr);
+            }
+            
+            return siguienteNumero;
         }
 
         public async Task<bool> DeleteGuiaAsync(int id, CancellationToken cancellationToken = default)
