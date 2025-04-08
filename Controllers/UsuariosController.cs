@@ -79,7 +79,7 @@ namespace GuiasBackend.Controllers
                     EMAIL = request.Email,
                     ROL = request.Role.ToUpper().Trim(),
                     ESTADO = "1",
-                    FECHA_CREACION = DateTime.UtcNow
+                    FECHA_CREACION = DateTime.Now
                 };
 
                 var createdUser = await _usuarioService.CreateUsuarioAsync(usuario);
@@ -446,7 +446,7 @@ namespace GuiasBackend.Controllers
                 EMAIL = request.Email,
                 ROL = request.Role.ToUpper().Trim(),
                 ESTADO = "1",
-                FECHA_CREACION = DateTime.UtcNow
+                FECHA_CREACION = DateTime.Now
             };
 
             return await _usuarioService.CreateUsuarioAsync(usuario);

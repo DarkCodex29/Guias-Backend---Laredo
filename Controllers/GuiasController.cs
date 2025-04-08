@@ -176,7 +176,7 @@ namespace GuiasBackend.Controllers
                 {
                     NOMBRE = guiaDTO.Nombre,
                     ARCHIVO = fileBytes,
-                    FECHA_SUBIDA = DateTime.UtcNow,
+                    FECHA_SUBIDA = DateTime.Now,
                     ID_USUARIO = guiaDTO.IdUsuario
                 };
 
