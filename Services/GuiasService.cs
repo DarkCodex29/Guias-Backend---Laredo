@@ -160,10 +160,17 @@ namespace GuiasBackend.Services
                 var guia = guias.FirstOrDefault();
                 if (guia != null)
                 {
-                    // Cargar el usuario de la guía
-                    guia.Usuario = await _context.Usuarios
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(u => u.ID == guia.ID_USUARIO, cancellationToken);
+                    // Cargar el usuario de la guía usando consulta nativa
+                    var usuarioSimple = await CargarUsuarioSimpleAsync(guia.ID_USUARIO, cancellationToken);
+                    if (usuarioSimple != null)
+                    {
+                        guia.Usuario = new Usuario 
+                        { 
+                            ID = usuarioSimple.ID,
+                            USERNAME = usuarioSimple.USERNAME
+                        };
+                        guia.UsernameUsuario = usuarioSimple.USERNAME;
+                    }
                 }
                 
                 return guia;
