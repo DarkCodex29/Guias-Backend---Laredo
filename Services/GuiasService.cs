@@ -216,24 +216,32 @@ namespace GuiasBackend.Services
 
         private async Task<UsuarioSimple?> CargarUsuarioSimpleAsync(int idUsuario, CancellationToken cancellationToken)
         {
-            var usuarioQuery = @"
-                SELECT ID, USERNAME 
-                FROM (
+            try 
+            {
+                var usuarioQuery = @"
                     SELECT ID, USERNAME 
                     FROM PIMS_GRE.USUARIO 
                     WHERE ID = :id_usuario_param
-                ) WHERE ROWNUM = 1";
+                    AND ROWNUM = 1";
+                    
+                var usuarioParam = new OracleParameter
+                {
+                    ParameterName = "id_usuario_param",
+                    OracleDbType = OracleDbType.Int32,
+                    Value = idUsuario
+                };
                 
-            var usuarioParam = new OracleParameter
+                var result = await _context.Database
+                    .SqlQueryRaw<UsuarioSimple>(usuarioQuery, usuarioParam)
+                    .ToListAsync(cancellationToken);
+                
+                return result.FirstOrDefault();
+            }
+            catch (Exception ex)
             {
-                ParameterName = "id_usuario_param",
-                OracleDbType = OracleDbType.Int32,
-                Value = idUsuario
-            };
-            
-            return await _context.Database
-                .SqlQueryRaw<UsuarioSimple>(usuarioQuery, usuarioParam)
-                .FirstOrDefaultAsync(cancellationToken);
+                _logger.LogError(ex, "Error al cargar usuario con ID {IdUsuario}", idUsuario);
+                throw;
+            }
         }
 
         private async Task<List<Guia>> ObtenerGuiasPaginadasAsync(int idUsuario, int page, int pageSize, CancellationToken cancellationToken)
