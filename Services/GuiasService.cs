@@ -214,110 +214,140 @@ namespace GuiasBackend.Services
             }
         }
 
-        // Método optimizado para obtener guías por ID de usuario
+        private async Task<UsuarioSimple?> CargarUsuarioSimpleAsync(int idUsuario, CancellationToken cancellationToken)
+        {
+            var usuarioQuery = @"
+                SELECT ID, USERNAME 
+                FROM (
+                    SELECT ID, USERNAME 
+                    FROM PIMS_GRE.USUARIO 
+                    WHERE ID = :id_usuario_param
+                ) WHERE ROWNUM = 1";
+                
+            var usuarioParam = new OracleParameter
+            {
+                ParameterName = "id_usuario_param",
+                OracleDbType = OracleDbType.Int32,
+                Value = idUsuario
+            };
+            
+            return await _context.Database
+                .SqlQueryRaw<UsuarioSimple>(usuarioQuery, usuarioParam)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        private async Task<List<Guia>> ObtenerGuiasPaginadasAsync(int idUsuario, int page, int pageSize, CancellationToken cancellationToken)
+        {
+            var pagedQuery = @"
+                SELECT ID, NOMBRE, ARCHIVO, FECHA_SUBIDA, ID_USUARIO
+                FROM (
+                    SELECT t.*, ROWNUM rn
+                    FROM (
+                        SELECT ID, NOMBRE, ARCHIVO, FECHA_SUBIDA, ID_USUARIO 
+                        FROM PIMS_GRE.GUIAS
+                        WHERE ID_USUARIO = :id_usuario_param
+                        ORDER BY FECHA_SUBIDA DESC
+                    ) t
+                    WHERE ROWNUM <= :endRow
+                )
+                WHERE rn > :startRow";
+
+            var idUsuarioParam = new OracleParameter
+            {
+                ParameterName = "id_usuario_param",
+                OracleDbType = OracleDbType.Int32,
+                Value = idUsuario
+            };
+            
+            var endRowParam = new OracleParameter
+            {
+                ParameterName = "endRow",
+                OracleDbType = OracleDbType.Int32,
+                Value = pageSize * page
+            };
+            
+            var startRowParam = new OracleParameter
+            {
+                ParameterName = "startRow",
+                OracleDbType = OracleDbType.Int32,
+                Value = pageSize * (page - 1)
+            };
+
+            return await _context.Guias
+                .FromSqlRaw(pagedQuery, idUsuarioParam, endRowParam, startRowParam)
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+        }
+
+        private async Task<List<Guia>> ObtenerTodasLasGuiasAsync(int idUsuario, CancellationToken cancellationToken)
+        {
+            var allQuery = @"
+                SELECT ID, NOMBRE, ARCHIVO, FECHA_SUBIDA, ID_USUARIO 
+                FROM PIMS_GRE.GUIAS
+                WHERE ID_USUARIO = :id_usuario_param
+                ORDER BY FECHA_SUBIDA DESC";
+
+            var idUsuarioParamAll = new OracleParameter
+            {
+                ParameterName = "id_usuario_param",
+                OracleDbType = OracleDbType.Int32,
+                Value = idUsuario
+            };
+
+            return await _context.Guias
+                .FromSqlRaw(allQuery, idUsuarioParamAll)
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+        }
+
+        private void AsignarUsuarioAGuias(List<Guia> guias, UsuarioSimple? usuarioSimple)
+        {
+            if (usuarioSimple != null)
+            {
+                foreach (var guia in guias)
+                {
+                    guia.Usuario = new Usuario 
+                    { 
+                        ID = usuarioSimple.ID,
+                        USERNAME = usuarioSimple.USERNAME
+                    };
+                    guia.UsernameUsuario = usuarioSimple.USERNAME;
+                }
+            }
+        }
+
         public async Task<IEnumerable<Guia>> GetGuiasByUsuarioIdAsync(int idUsuario, int page = 1, int pageSize = 20, bool all = false, CancellationToken cancellationToken = default)
         {
             try
             {
                 _logger.LogInformation("Obteniendo guías para el usuario con ID: {IdUsuario}", idUsuario);
                 
-                // Usar SQL nativo para esta consulta
+                List<Guia> guias;
+                
                 if (all)
                 {
-                    var allQuery = @"
-                        SELECT ID, NOMBRE, ARCHIVO, FECHA_SUBIDA, ID_USUARIO 
-                        FROM PIMS_GRE.GUIAS
-                        WHERE ID_USUARIO = :id_usuario_param
-                        ORDER BY FECHA_SUBIDA DESC";
-
-                    var idUsuarioParamAll = new OracleParameter
-                    {
-                        ParameterName = "id_usuario_param",
-                        OracleDbType = OracleDbType.Int32,
-                        Value = idUsuario
-                    };
-
-                    var guias = await _context.Guias
-                        .FromSqlRaw(allQuery, idUsuarioParamAll)
-                        .AsNoTracking()
-                        .ToListAsync(cancellationToken);
-                        
+                    guias = await ObtenerTodasLasGuiasAsync(idUsuario, cancellationToken);
+                    
                     if (guias.Count == 0)
                     {
                         _logger.LogInformation("El usuario con ID {IdUsuario} no tiene guías asignadas", idUsuario);
                     }
-                    
-                    // Cargar el usuario para cada guía
-                    var usuario = await _context.Usuarios
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(u => u.ID == idUsuario, cancellationToken);
-                        
-                    foreach (var guia in guias)
-                    {
-                        guia.Usuario = usuario;
-                    }
-                        
-                    return guias;
                 }
                 else
                 {
-                    var pagedQuery = @"
-                        SELECT ID, NOMBRE, ARCHIVO, FECHA_SUBIDA, ID_USUARIO
-                        FROM (
-                            SELECT t.*, ROWNUM rn
-                            FROM (
-                                SELECT ID, NOMBRE, ARCHIVO, FECHA_SUBIDA, ID_USUARIO 
-                                FROM PIMS_GRE.GUIAS
-                                WHERE ID_USUARIO = :id_usuario_param
-                                ORDER BY FECHA_SUBIDA DESC
-                            ) t
-                            WHERE ROWNUM <= :endRow
-                        )
-                        WHERE rn > :startRow";
-
-                    var idUsuarioParam = new OracleParameter
-                    {
-                        ParameterName = "id_usuario_param",
-                        OracleDbType = OracleDbType.Int32,
-                        Value = idUsuario
-                    };
+                    guias = await ObtenerGuiasPaginadasAsync(idUsuario, page, pageSize, cancellationToken);
                     
-                    var endRowParam = new OracleParameter
-                    {
-                        ParameterName = "endRow",
-                        OracleDbType = OracleDbType.Int32,
-                        Value = pageSize * page
-                    };
-                    
-                    var startRowParam = new OracleParameter
-                    {
-                        ParameterName = "startRow",
-                        OracleDbType = OracleDbType.Int32,
-                        Value = pageSize * (page - 1)
-                    };
-
-                    var guias = await _context.Guias
-                        .FromSqlRaw(pagedQuery, idUsuarioParam, endRowParam, startRowParam)
-                        .AsNoTracking()
-                        .ToListAsync(cancellationToken);
-                        
                     if (guias.Count == 0)
                     {
                         _logger.LogInformation("El usuario con ID {IdUsuario} no tiene guías asignadas en la página {Page}", idUsuario, page);
                     }
-                        
-                    // Cargar el usuario para cada guía
-                    var usuario = await _context.Usuarios
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(u => u.ID == idUsuario, cancellationToken);
-                        
-                    foreach (var guia in guias)
-                    {
-                        guia.Usuario = usuario;
-                    }
-                        
-                    return guias;
                 }
+                
+                // Cargar el usuario para cada guía
+                var usuarioSimple = await CargarUsuarioSimpleAsync(idUsuario, cancellationToken);
+                AsignarUsuarioAGuias(guias, usuarioSimple);
+                
+                return guias;
             }
             catch (Exception ex)
             {
