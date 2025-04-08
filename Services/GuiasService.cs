@@ -221,9 +221,7 @@ namespace GuiasBackend.Services
             {
                 _logger.LogInformation("Obteniendo guías para el usuario con ID: {IdUsuario}", idUsuario);
                 
-                // Eliminamos la validación de usuario, ya lo hace el controlador
-                
-                // Usar SQL nativo para esta consulta también
+                // Usar SQL nativo para esta consulta
                 if (all)
                 {
                     var allQuery = @"
