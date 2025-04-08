@@ -240,7 +240,7 @@ namespace GuiasBackend.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al cargar usuario con ID {IdUsuario}", idUsuario);
-                throw;
+                throw new InvalidOperationException($"Error al cargar el usuario con ID {idUsuario}", ex);
             }
         }
 

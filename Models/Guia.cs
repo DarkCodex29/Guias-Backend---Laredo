@@ -21,7 +21,7 @@ namespace GuiasBackend.Models
 
         [Required]
         [Column("FECHA_SUBIDA")]
-        public DateTime FECHA_SUBIDA { get; set; } = DateTime.UtcNow;
+        public DateTime FECHA_SUBIDA { get; set; } = DateTime.Now;
 
         [Required]
         [Column("ID_USUARIO")]
