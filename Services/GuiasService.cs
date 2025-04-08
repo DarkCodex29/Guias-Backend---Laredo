@@ -200,7 +200,7 @@ namespace GuiasBackend.Services
                 // Establecer fecha de subida si no se proporcionó
                 if (guia.FECHA_SUBIDA == default)
                 {
-                    guia.FECHA_SUBIDA = DateTime.UtcNow;
+                    guia.FECHA_SUBIDA = DateTime.Now;
                 }
 
                 _context.Guias.Add(guia);
