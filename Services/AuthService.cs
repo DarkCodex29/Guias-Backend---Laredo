@@ -112,7 +112,7 @@ namespace GuiasBackend.Services
                     issuer: _jwtIssuer,
                     audience: _jwtAudience,
                     claims: claims,
-                    expires: DateTime.UtcNow.AddHours(_jwtExpirationHours),
+                    expires: DateTime.Now.AddHours(_jwtExpirationHours),
                     signingCredentials: credentials
                 );
 
@@ -204,7 +204,7 @@ namespace GuiasBackend.Services
                 {
                     // Agregar el token a la lista de tokens revocados
                     // En un entorno de producción, esto debería persistirse en una base de datos
-                    if (!_revokedTokens.TryAdd(token, DateTime.UtcNow))
+                    if (!_revokedTokens.TryAdd(token, DateTime.Now))
                     {
                         _logger.LogWarning("El token ya estaba revocado");
                     }
@@ -235,7 +235,7 @@ namespace GuiasBackend.Services
                     try 
                     {
                         var token = tokenHandler.ReadJwtToken(entry.Key);
-                        return token.ValidTo < DateTime.UtcNow;
+                        return token.ValidTo < DateTime.Now;
                     }
                     catch
                     {
@@ -288,8 +288,8 @@ namespace GuiasBackend.Services
                 {
                     EMAIL = email,
                     CODIGO = code,
-                    FECHA_CREACION = DateTime.UtcNow,
-                    FECHA_EXPIRACION = DateTime.UtcNow.AddMinutes(30),
+                    FECHA_CREACION = DateTime.Now,
+                    FECHA_EXPIRACION = DateTime.Now.AddMinutes(30),
                     USADO = false
                 };
 
@@ -348,7 +348,7 @@ namespace GuiasBackend.Services
             {
                 // Buscar código válido
                 var passwordReset = await _context.PasswordResets
-                    .Where(r => r.EMAIL == email && r.CODIGO == code && !r.USADO && r.FECHA_EXPIRACION > DateTime.UtcNow)
+                    .Where(r => r.EMAIL == email && r.CODIGO == code && !r.USADO && r.FECHA_EXPIRACION > DateTime.Now)
                     .OrderByDescending(r => r.FECHA_CREACION)
                     .FirstOrDefaultAsync();
 
@@ -392,7 +392,7 @@ namespace GuiasBackend.Services
 
                 // Actualizar contraseña
                 user.CONTRASEÑA = HashPassword(newPassword);
-                user.FECHA_ACTUALIZACION = DateTime.UtcNow;
+                user.FECHA_ACTUALIZACION = DateTime.Now;
 
                 // Marcar código como usado
                 var passwordReset = await _context.PasswordResets

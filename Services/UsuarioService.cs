@@ -339,7 +339,7 @@ namespace GuiasBackend.Services
 
                 // Mejor enfoque: usar Entity Framework directamente
                 usuario.CONTRASEÑA = BCrypt.Net.BCrypt.HashPassword(nuevaContraseña);
-                usuario.FECHA_ACTUALIZACION = DateTime.UtcNow;
+                usuario.FECHA_ACTUALIZACION = DateTime.Now;
                 await _context.SaveChangesAsync();
                 
                 return true;
@@ -368,7 +368,7 @@ namespace GuiasBackend.Services
 
                 // Mejor enfoque: usar Entity Framework directamente
                 usuario.ESTADO = nuevoEstado;
-                usuario.FECHA_ACTUALIZACION = DateTime.UtcNow;
+                usuario.FECHA_ACTUALIZACION = DateTime.Now;
                 await _context.SaveChangesAsync();
                 
                 return true;

@@ -46,7 +46,7 @@ namespace GuiasBackend.Models
         public string ESTADO { get; set; } = "1";
 
         [Column("FECHA_CREACION")]
-        public DateTime FECHA_CREACION { get; set; } = DateTime.UtcNow;
+        public DateTime FECHA_CREACION { get; set; } = DateTime.Now;
 
         [Column("FECHA_ACTUALIZACION")]
         public DateTime? FECHA_ACTUALIZACION { get; set; }
