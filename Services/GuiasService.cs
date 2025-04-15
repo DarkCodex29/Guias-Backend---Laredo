@@ -396,7 +396,7 @@ namespace GuiasBackend.Services
                 string? ultimoNombre = await ObtenerUltimoNombreAsync(cancellationToken);
                 int siguienteNumero = ObtenerSiguienteNumero(ultimoNombre);
                 
-                // Formatear el nuevo correlativo
+                // Formatear el nuevo correlativo con 8 dígitos
                 return $"T002-{siguienteNumero:D8}";
             }
             catch (Exception ex)
@@ -441,7 +441,7 @@ namespace GuiasBackend.Services
         
         private int ObtenerSiguienteNumero(string? ultimoNombre)
         {
-            int siguienteNumero = 100; // Comenzamos desde 100 si no hay guías
+            int siguienteNumero = 1; // Comenzamos desde 1 si no hay guías
 
             if (string.IsNullOrEmpty(ultimoNombre))
             {
