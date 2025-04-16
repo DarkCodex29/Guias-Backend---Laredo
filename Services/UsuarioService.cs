@@ -190,25 +190,61 @@ namespace GuiasBackend.Services
         {
             try
             {
+                // Verificar si el usuario existe
                 var existingUsuario = await GetUsuarioByIdAsync(usuario.ID);
                 if (existingUsuario == null)
                 {
                     throw new InvalidOperationException($"No existe un usuario con ID {usuario.ID}");
                 }
 
+                // Verificar username único si ha cambiado
                 if (usuario.USERNAME != existingUsuario.USERNAME && await ExisteUsuarioAsync(usuario.USERNAME))
                 {
                     throw new InvalidOperationException($"Ya existe un usuario con el username {usuario.USERNAME}");
                 }
 
+                // Verificar email único si ha cambiado
                 if (usuario.EMAIL != existingUsuario.EMAIL && await ExisteEmailAsync(usuario.EMAIL))
                 {
                     throw new InvalidOperationException($"Ya existe un usuario con el email {usuario.EMAIL}");
                 }
 
-                _context.Entry(existingUsuario).CurrentValues.SetValues(usuario);
-                await _context.SaveChangesAsync();
-                return true;
+                // Construir la consulta SQL base
+                var sql = @"
+                    UPDATE PIMS_GRE.USUARIO 
+                    SET USERNAME = :username,
+                        NOMBRES = :nombres,
+                        APELLIDOS = :apellidos,
+                        EMAIL = :email,
+                        ROL = :rol,
+                        ESTADO = :estado,
+                        FECHA_ACTUALIZACION = SYSDATE";
+
+                var parameters = new List<OracleParameter>
+                {
+                    new OracleParameter("username", usuario.USERNAME),
+                    new OracleParameter("nombres", usuario.NOMBRES),
+                    new OracleParameter("apellidos", usuario.APELLIDOS),
+                    new OracleParameter("email", usuario.EMAIL),
+                    new OracleParameter("rol", usuario.ROL),
+                    new OracleParameter("estado", usuario.ESTADO),
+                    new OracleParameter("id", usuario.ID)
+                };
+
+                // Si se proporciona una nueva contraseña, hashearla y agregarla a la actualización
+                if (!string.IsNullOrEmpty(usuario.CONTRASEÑA) && usuario.CONTRASEÑA != existingUsuario.CONTRASEÑA)
+                {
+                    sql += ", CONTRASEÑA = :contraseña";
+                    parameters.Add(new OracleParameter("contraseña", BCrypt.Net.BCrypt.HashPassword(usuario.CONTRASEÑA)));
+                }
+
+                sql += " WHERE ID = :id";
+
+                var rowsAffected = await _context.Database.ExecuteSqlRawAsync(sql, parameters.ToArray());
+                
+                _logger.LogInformation("Actualización de usuario {Id} completada. Filas afectadas: {RowsAffected}", usuario.ID, rowsAffected);
+                
+                return rowsAffected > 0;
             }
             catch (Exception ex)
             {
@@ -337,12 +373,27 @@ namespace GuiasBackend.Services
                     throw new InvalidOperationException($"No existe un usuario con ID {id}");
                 }
 
-                // Mejor enfoque: usar Entity Framework directamente
-                usuario.CONTRASEÑA = BCrypt.Net.BCrypt.HashPassword(nuevaContraseña);
-                usuario.FECHA_ACTUALIZACION = DateTime.Now;
-                await _context.SaveChangesAsync();
+                // Hashear la nueva contraseña
+                string contraseñaHasheada = BCrypt.Net.BCrypt.HashPassword(nuevaContraseña);
+
+                // Actualizar usando SQL nativo
+                var sql = @"
+                    UPDATE PIMS_GRE.USUARIO 
+                    SET CONTRASEÑA = :contraseña,
+                        FECHA_ACTUALIZACION = SYSDATE
+                    WHERE ID = :id";
+
+                var parameters = new[]
+                {
+                    new OracleParameter("contraseña", contraseñaHasheada),
+                    new OracleParameter("id", id)
+                };
+
+                var rowsAffected = await _context.Database.ExecuteSqlRawAsync(sql, parameters);
                 
-                return true;
+                _logger.LogInformation("Cambio de contraseña para usuario {Id} completado. Filas afectadas: {RowsAffected}", id, rowsAffected);
+                
+                return rowsAffected > 0;
             }
             catch (Exception ex) when (ex is not InvalidOperationException)
             {
