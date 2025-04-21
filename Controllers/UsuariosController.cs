@@ -17,7 +17,6 @@ using GuiasBackend.Helpers;
 namespace GuiasBackend.Controllers
 {
     // Solo los administradores pueden gestionar usuarios
-    [Authorize(Policy = "RequireAdminRole")]
     [ApiController]
     [Route("api/usuarios")]
     [Produces("application/json")]
