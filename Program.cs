@@ -119,10 +119,14 @@ static void ConfigureMiddleware(WebApplication app)
 
 static void ConfigureDatabase(WebApplicationBuilder builder)
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    var environment = builder.Environment.EnvironmentName;
+    var connectionString = environment == "Production" 
+        ? builder.Configuration.GetConnectionString("ProductionConnection")
+        : builder.Configuration.GetConnectionString("DefaultConnection");
+
     if (string.IsNullOrEmpty(connectionString))
     {
-        throw new InvalidOperationException("La cadena de conexión 'DefaultConnection' no está configurada en appsettings.json");
+        throw new InvalidOperationException($"La cadena de conexión para el ambiente {environment} no está configurada en appsettings.json");
     }
 
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
