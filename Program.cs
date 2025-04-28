@@ -17,6 +17,8 @@ using GuiasBackend.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration.AddUserSecrets<Program>();
+
 ProcessConfiguration(builder.Configuration);
 
 ConfigureKestrel(builder);
@@ -277,12 +279,16 @@ static void ConfigureDependencyInjection(WebApplicationBuilder builder)
 
 static void ProcessConfiguration(IConfiguration configuration)
 {
+    var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+    if (string.IsNullOrEmpty(dbPassword))
+    {
+        throw new InvalidOperationException("DB_PASSWORD no configurada. Configura la variable de entorno antes de ejecutar la aplicación.");
+    }
+
     var connectionString = configuration.GetConnectionString("DefaultConnection");
     if (!string.IsNullOrEmpty(connectionString))
     {
-        connectionString = connectionString.Replace("#{DB_PASSWORD}#", 
-            configuration["DB_PASSWORD"] ?? throw new InvalidOperationException("DB_PASSWORD no configurada. Ejecuta: dotnet user-secrets set \"DB_PASSWORD\" \"tu-contraseña\""));
-        
+        connectionString = connectionString.Replace("#{DB_PASSWORD}#", dbPassword);
         configuration["ConnectionStrings:DefaultConnection"] = connectionString;
     }
 
@@ -302,6 +308,9 @@ static void ProcessConfiguration(IConfiguration configuration)
     
     // Procesar configuraciones de email si existen
     ProcessEmailConfiguration(configuration);
+
+    Console.WriteLine($"DB_PASSWORD: {Environment.GetEnvironmentVariable("DB_PASSWORD")}");
+    Console.WriteLine($"ASPNETCORE_ENVIRONMENT: {Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}");
 }
 
 static void ProcessEmailConfiguration(IConfiguration configuration)
@@ -312,14 +321,14 @@ static void ProcessEmailConfiguration(IConfiguration configuration)
         configuration["Email:Username"] = emailUsername.Replace("#{EMAIL_USERNAME}#", 
             configuration["EMAIL_USERNAME"] ?? "correo@ejemplo.com");
     }
-    
+
     var emailPassword = configuration["Email:Password"];
     if (emailPassword?.Contains("#{EMAIL_PASSWORD}#") == true)
     {
         configuration["Email:Password"] = emailPassword.Replace("#{EMAIL_PASSWORD}#", 
             configuration["EMAIL_PASSWORD"] ?? "password");
     }
-    
+
     var emailSender = configuration["Email:SenderEmail"];
     if (emailSender?.Contains("#{EMAIL_SENDER}#") == true)
     {
