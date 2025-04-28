@@ -84,16 +84,13 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
 static void ConfigureMiddleware(WebApplication app)
 {
-    if (app.Environment.IsDevelopment())
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
     {
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "GuiasBackend API v1");
-            c.RoutePrefix = "swagger";
-            c.DocumentTitle = "GuiasBackend API Documentation";
-        });
-    }
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "GuiasBackend API v1");
+        c.RoutePrefix = "swagger";
+        c.DocumentTitle = "GuiasBackend API Documentation";
+    });
 
     app.UseForwardedHeaders(new ForwardedHeadersOptions
     {
