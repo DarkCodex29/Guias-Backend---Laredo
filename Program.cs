@@ -279,17 +279,22 @@ static void ConfigureDependencyInjection(WebApplicationBuilder builder)
 
 static void ProcessConfiguration(IConfiguration configuration)
 {
-    var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
-    if (string.IsNullOrEmpty(dbPassword))
+    // Reemplazo para DefaultConnection
+    var defaultConnectionString = configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrEmpty(defaultConnectionString))
     {
-        throw new InvalidOperationException("DB_PASSWORD no configurada. Configura la variable de entorno antes de ejecutar la aplicación.");
+        defaultConnectionString = defaultConnectionString.Replace("#{DB_PASSWORD}#", 
+            configuration["DB_PASSWORD"] ?? throw new InvalidOperationException("DB_PASSWORD no configurada. Ejecuta: dotnet user-secrets set \"DB_PASSWORD\" \"tu-contraseña\""));
+        configuration["ConnectionStrings:DefaultConnection"] = defaultConnectionString;
     }
 
-    var connectionString = configuration.GetConnectionString("DefaultConnection");
-    if (!string.IsNullOrEmpty(connectionString))
+    // Reemplazo para ProductionConnection
+    var prodConnectionString = configuration.GetConnectionString("ProductionConnection");
+    if (!string.IsNullOrEmpty(prodConnectionString))
     {
-        connectionString = connectionString.Replace("#{DB_PASSWORD}#", dbPassword);
-        configuration["ConnectionStrings:DefaultConnection"] = connectionString;
+        prodConnectionString = prodConnectionString.Replace("#{DB_PASSWORD}#", 
+            configuration["DB_PASSWORD"] ?? throw new InvalidOperationException("DB_PASSWORD no configurada. Ejecuta: dotnet user-secrets set \"DB_PASSWORD\" \"tu-contraseña\""));
+        configuration["ConnectionStrings:ProductionConnection"] = prodConnectionString;
     }
 
     var jwtKey = configuration["Jwt:Key"];
