@@ -39,7 +39,7 @@ namespace GuiasBackend.Services
         }
 
         // Método con paginación - Corrigiendo advertencias S1006 (valores por defecto) y S1481 (variable no utilizada)
-        public async Task<PagedResponse<Usuario>> GetUsuariosAsync(int page = 1, int pageSize = 50, bool all = false, CancellationToken cancellationToken = default)
+        public async Task<PagedResponse<Usuario>> GetUsuariosAsync(int page = 1, int pageSize = 50, bool all = false, bool includeInactive = false, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -51,13 +51,18 @@ namespace GuiasBackend.Services
                 if (all)
                 {
                     // Si se solicitan todos los registros, ignoramos la paginación
-                    query = _context.Usuarios.OrderByDescending(u => u.ID).AsNoTracking();
+                    query = _context.Usuarios
+                        .Where(u => includeInactive || u.ESTADO == "1")
+                        .OrderByDescending(u => u.ID)
+                        .AsNoTracking();
                 }
                 else
                 {
                     // Paginación con ordenamiento descendente
                     int startRow = (page - 1) * pageSize;
                     int endRow = page * pageSize;
+                    
+                    var estadoCondition = includeInactive ? "" : "AND ESTADO = '1'";
                     
                     query = _context.Usuarios
                         .FromSql($@"
@@ -67,6 +72,7 @@ namespace GuiasBackend.Services
                                 FROM (
                                     SELECT *
                                     FROM USUARIO
+                                    WHERE 1=1 {estadoCondition}
                                     ORDER BY ID DESC
                                 ) u
                                 WHERE ROWNUM <= {endRow}
@@ -77,7 +83,12 @@ namespace GuiasBackend.Services
                 
                 var usuarios = await query.ToListAsync(cancellationToken);
                 
-                // Usar constructor en lugar de inicialización de objeto
+                // Actualizar el conteo total si estamos filtrando por estado
+                if (!includeInactive)
+                {
+                    totalRecords = await _context.Usuarios.CountAsync(u => u.ESTADO == "1", cancellationToken);
+                }
+                
                 return new PagedResponse<Usuario>(
                     data: usuarios,
                     page: page,
@@ -88,7 +99,7 @@ namespace GuiasBackend.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al obtener usuarios paginados");
-                throw new InvalidOperationException("Error al obtener usuarios paginados", ex); // Corrige S2139
+                throw new InvalidOperationException("Error al obtener usuarios paginados", ex);
             }
         }
 

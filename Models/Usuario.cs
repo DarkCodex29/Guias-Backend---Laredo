@@ -35,10 +35,9 @@ namespace GuiasBackend.Models
         [Column("ROL")]
         public string ROL { get; set; } = string.Empty;
 
-        [Required]
         [StringLength(100)]
         [Column("EMAIL")]
-        public string EMAIL { get; set; } = string.Empty;
+        public string? EMAIL { get; set; }
 
         [Required]
         [StringLength(1)]

@@ -57,7 +57,7 @@ namespace GuiasBackend.Controllers
                     return BadRequest(new { message = validationResult });
                 }
 
-                if (await _usuarioService.ExisteEmailAsync(request.Email))
+                if (!string.IsNullOrWhiteSpace(request.Email) && await _usuarioService.ExisteEmailAsync(request.Email))
                 {
                     return BadRequest(new { message = $"El email {request.Email} ya está registrado" });
                 }
@@ -106,7 +106,7 @@ namespace GuiasBackend.Controllers
 
         // Método auxiliar para validar el request
         [NonAction]
-        private static string? ValidateRegisterRequest(RegisterRequest request)  // Marcado como static porque no usa estado de la instancia
+        private static string? ValidateRegisterRequest(RegisterRequest request)
         {
             // Validación del rol
             var role = request.Role.ToUpper().Trim();
@@ -130,6 +130,12 @@ namespace GuiasBackend.Controllers
                 return "La contraseña es requerida";
             }
 
+            // Validar formato de email solo si se proporciona uno
+            if (!string.IsNullOrWhiteSpace(request.Email) && !ExcelHelper.IsValidEmail(request.Email))
+            {
+                return "El formato del email no es válido";
+            }
+
             return null;
         }
 
@@ -142,6 +148,7 @@ namespace GuiasBackend.Controllers
             [FromQuery] int page = 1, 
             [FromQuery] int pageSize = 50,
             [FromQuery] bool all = false,
+            [FromQuery] bool includeInactive = false,
             CancellationToken cancellationToken = default)
         {
             try
@@ -160,7 +167,7 @@ namespace GuiasBackend.Controllers
                     }
                 }
 
-                var usuarios = await _usuarioService.GetUsuariosAsync(page, pageSize, all, cancellationToken);
+                var usuarios = await _usuarioService.GetUsuariosAsync(page, pageSize, all, includeInactive, cancellationToken);
                 return Ok(usuarios);
             }
             catch (Exception ex)
@@ -235,23 +242,34 @@ namespace GuiasBackend.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "ADMINISTRADOR")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> DeleteUserAsync(int id)
         {
             try
             {
-                var success = await _usuarioService.DeleteUsuarioAsync(id);
-                if (!success)
+                var usuario = await _usuarioService.GetUsuarioByIdAsync(id);
+                if (usuario == null)
                 {
                     return NotFound(new { message = $"No se encontró el usuario con ID: {id}" });
                 }
-                return NoContent();
+
+                // Actualizar el estado a inactivo en lugar de eliminar
+                usuario.ESTADO = "0";
+                usuario.FECHA_ACTUALIZACION = DateTime.Now;
+                
+                var success = await _usuarioService.UpdateUsuarioAsync(usuario);
+                if (!success)
+                {
+                    return StatusCode(500, new { message = "Error al desactivar el usuario" });
+                }
+
+                return Ok(new { message = $"Usuario {usuario.USERNAME} desactivado exitosamente" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al eliminar usuario: {Id}", id);
+                _logger.LogError(ex, "Error al desactivar usuario: {Id}", id);
                 return StatusCode(500, new { message = ErrorMessages.InternalServerError });
             }
         }
@@ -333,7 +351,8 @@ namespace GuiasBackend.Controllers
             var headerRow = sheet.GetRow(0);
             if (headerRow == null) return null;
 
-            var expectedHeaders = new[] { "username", "password", "email", "names", "surnames", "role" };
+            var requiredHeaders = new[] { "username", "password", "names", "surnames", "role" };
+            var optionalHeaders = new[] { "email" };
             var headerIndexes = new Dictionary<string, int>();
             
             for (int i = 0; i < headerRow.LastCellNum; i++)
@@ -342,15 +361,15 @@ namespace GuiasBackend.Controllers
                 if (cell != null && !string.IsNullOrWhiteSpace(cell.StringCellValue))
                 {
                     var header = cell.StringCellValue.ToLower().Trim();
-                    if (expectedHeaders.Contains(header))
+                    if (requiredHeaders.Contains(header) || optionalHeaders.Contains(header))
                     {
                         headerIndexes[header] = i;
                     }
                 }
             }
 
-            // Verificar que todos los encabezados están presentes
-            return expectedHeaders.All(h => headerIndexes.ContainsKey(h)) ? headerIndexes : null;
+            // Verificar que todos los encabezados requeridos están presentes
+            return requiredHeaders.All(h => headerIndexes.ContainsKey(h)) ? headerIndexes : null;
         }
 
         [NonAction]
@@ -417,8 +436,8 @@ namespace GuiasBackend.Controllers
                 return $"Error en la fila {rowIndex + 1}: {validationResult}";
             }
 
-            // Validar si el email ya existe
-            if (await _usuarioService.ExisteEmailAsync(request.Email))
+            // Validar si el email ya existe (solo si se proporciona uno)
+            if (!string.IsNullOrWhiteSpace(request.Email) && await _usuarioService.ExisteEmailAsync(request.Email))
             {
                 return $"Error en la fila {rowIndex + 1}: El email {request.Email} ya está registrado";
             }

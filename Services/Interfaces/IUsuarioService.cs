@@ -5,7 +5,7 @@ namespace GuiasBackend.Services.Interfaces
 {
     public interface IUsuarioService
     {
-        Task<PagedResponse<Usuario>> GetUsuariosAsync(int page = 1, int pageSize = 50, bool all = false, CancellationToken cancellationToken = default);
+        Task<PagedResponse<Usuario>> GetUsuariosAsync(int page = 1, int pageSize = 50, bool all = false, bool includeInactive = false, CancellationToken cancellationToken = default);
         Task<IEnumerable<Usuario>> GetAllUsuariosAsync(); 
         Task<Usuario?> GetUsuarioByIdAsync(int id);
         Task<Usuario?> GetUsuarioByUsernameAsync(string username);
