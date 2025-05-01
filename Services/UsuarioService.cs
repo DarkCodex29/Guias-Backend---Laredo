@@ -61,24 +61,42 @@ namespace GuiasBackend.Services
                     // Paginación con ordenamiento descendente
                     int startRow = (page - 1) * pageSize;
                     int endRow = page * pageSize;
-                    
-                    var estadoCondition = includeInactive ? "" : "AND ESTADO = '1'";
-                    
-                    query = _context.Usuarios
-                        .FromSql($@"
-                            SELECT *
-                            FROM (
-                                SELECT u.*, ROWNUM rn
+
+                    if (includeInactive)
+                    {
+                        query = _context.Usuarios
+                            .FromSql($@"
+                                SELECT *
                                 FROM (
-                                    SELECT *
-                                    FROM USUARIO
-                                    WHERE 1=1 {estadoCondition}
-                                    ORDER BY ID DESC
-                                ) u
-                                WHERE ROWNUM <= {endRow}
-                            )
-                            WHERE rn > {startRow}")
-                        .AsNoTracking();
+                                    SELECT u.*, ROWNUM rn
+                                    FROM (
+                                        SELECT *
+                                        FROM USUARIO
+                                        ORDER BY ID DESC
+                                    ) u
+                                    WHERE ROWNUM <= {endRow}
+                                )
+                                WHERE rn > {startRow}")
+                            .AsNoTracking();
+                    }
+                    else
+                    {
+                        query = _context.Usuarios
+                            .FromSql($@"
+                                SELECT *
+                                FROM (
+                                    SELECT u.*, ROWNUM rn
+                                    FROM (
+                                        SELECT *
+                                        FROM USUARIO
+                                        WHERE ESTADO = '1'
+                                        ORDER BY ID DESC
+                                    ) u
+                                    WHERE ROWNUM <= {endRow}
+                                )
+                                WHERE rn > {startRow}")
+                            .AsNoTracking();
+                    }
                 }
                 
                 var usuarios = await query.ToListAsync(cancellationToken);
