@@ -199,7 +199,7 @@ namespace GuiasBackend.Services
                     throw new InvalidOperationException($"Ya existe un usuario con el username {usuario.USERNAME}");
                 }
 
-                if (await ExisteEmailAsync(usuario.EMAIL))
+                if (!string.IsNullOrWhiteSpace(usuario.EMAIL) && await ExisteEmailAsync(usuario.EMAIL))
                 {
                     throw new InvalidOperationException($"Ya existe un usuario con el email {usuario.EMAIL}");
                 }
@@ -233,7 +233,7 @@ namespace GuiasBackend.Services
                 }
 
                 // Verificar email único si ha cambiado
-                if (usuario.EMAIL != existingUsuario.EMAIL && await ExisteEmailAsync(usuario.EMAIL))
+                if (!string.IsNullOrWhiteSpace(usuario.EMAIL) && usuario.EMAIL != existingUsuario.EMAIL && await ExisteEmailAsync(usuario.EMAIL))
                 {
                     throw new InvalidOperationException($"Ya existe un usuario con el email {usuario.EMAIL}");
                 }

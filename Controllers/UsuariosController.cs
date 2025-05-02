@@ -120,11 +120,6 @@ namespace GuiasBackend.Controllers
                 return "El username es requerido";
             }
 
-            if (string.IsNullOrWhiteSpace(request.Email))
-            {
-                return "El email es requerido";
-            }
-
             if (string.IsNullOrWhiteSpace(request.Password))
             {
                 return "La contraseña es requerida";
